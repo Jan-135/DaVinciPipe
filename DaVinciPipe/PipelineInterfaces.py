@@ -79,16 +79,24 @@ class KitsuPipeline(AbstractPipelineInterface):
         kitsuShotList = gazu.client.get(path="data/shots", params=filter)
 
         for kitsuShot in kitsuShotList:
-            shot = {
-                "id": kitsuShot["id"],
-                "name": kitsuShot["name"],
+            id = kitsuShot["id"]
+            shot = gazu.shot.get_shot(id)
+            if shot is None or shot.get("data") is None:
+                print(f"Shot {id} not found.")
+                print(kitsuShot)
+            else:
 
-            }
+                outShot = {
+                    "name": shot["sequence_name"] + "_" + shot["name"],
+                    "start": shot["frame_in"],
+                    "end": shot["frame_out"],
+                    "duration": shot["nb_frames"],
+                    "filePath": shot.get("data").get("absolutepath")
+                }
 
+                shotListOut.append(outShot)
 
-        id = kitsuShotList[0]["id"]
-        shot = gazu.client.get(path=f"data/shots/{id}", params=filter)
-        return shot
+        return shotListOut
 
     def updateAllShots(self, shotList: list[dict[str, Any]]) -> bool:
         return True
