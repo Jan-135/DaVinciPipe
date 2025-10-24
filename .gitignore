@@ -1,5 +1,3 @@
 .gitignore
 .venv/
 .idea/
-config
-/config/
