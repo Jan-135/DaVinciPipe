@@ -1,11 +1,14 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
 from DaVinciPipe.DavinciHandle import DavinciHandle
 from DaVinciPipe.PipelineInterfaces import AbstractPipelineInterface, KitsuPipeline, ShotgridPipeline
 
-import sys
+sys.path.append("N:/vendor")
+
+from PySide6.QtWidgets import QApplication
 
 
 def _addVendorToSyspath(config: dict[str, Any]) -> None:
@@ -43,6 +46,7 @@ def main(resolve, config: dict[str, Any] = None):
     except:
         raise Exception("Robin hat rein geschissen.")
 
+    app = QApplication(sys.argv)
     manager: str = None
     pipe: AbstractPipelineInterface = None
 
@@ -52,7 +56,7 @@ def main(resolve, config: dict[str, Any] = None):
     if manager == "shotgrid":
         pipe = ShotgridPipeline()
     elif manager == "kitsu":
-        pipe = KitsuPipeline(config.get("kitsu"))
+        pipe = KitsuPipeline(config.get("kitsu"), app)
 
     handle: DavinciHandle = DavinciHandle(pipe)
 
@@ -61,3 +65,5 @@ def main(resolve, config: dict[str, Any] = None):
     clipsCollection = handle.getTimelineInfo(timeline)
     kitsuShots = pipe._collectShotsFromPipeline()
     print(dir(kitsuShots))
+
+    sys.exit(app.exec())

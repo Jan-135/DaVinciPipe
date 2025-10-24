@@ -2,8 +2,6 @@
   "manager": "kitsu",
   "kitsu": {
     "apiUrl": "http://10.111.128.9/api",
-    "email": "jf135@hdm-stuttgart.de",
-    "password": "pipeline",
     "project_name": "star"
   },
   "shotgun": {

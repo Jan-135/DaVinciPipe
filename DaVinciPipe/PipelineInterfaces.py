@@ -1,13 +1,22 @@
+import pathlib
+import re
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import gazu
+import sys
+
+sys.path.append("N:/vendor")
+
+from PySide6.QtWidgets import QDialog
+
+from ui.login_window import LoginDialog
 
 
 class AbstractPipelineInterface(ABC):
 
     def getShotInformations(self):
-        shotList = self._collectShots()
+        shotList = self._collectShotsFromPipeline()
         if self.__validate(shotList):
             return shotList
         else:
@@ -16,9 +25,10 @@ class AbstractPipelineInterface(ABC):
     def __validate(self, shotList):
         for shot in shotList:
             if shot.get("name") and shot.get("start") and shot.get("duration") and shot.get("end"):
-                return True
+                continue
             else:
                 return False
+        return True
 
     @abstractmethod
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
@@ -48,26 +58,34 @@ class ShotgridPipeline(AbstractPipelineInterface):
 
 class KitsuPipeline(AbstractPipelineInterface):
 
-    def __init__(self, config: dict):
-        """
-                Connects to Kitsu server using the username and password given in the config file.
-
-                :param config:
-                :return:
-                """
+    def __init__(self, config: dict, qtApp):
         self.config = config
-        try:
-            apiUrl = config.get("apiUrl")
-            email = config.get('email')
-            password = config.get('password')
-            if not apiUrl or not email or not password:
-                raise Exception("apiUrl, email and password are required in config.yaml")
+        self._qtApp = qtApp
+        dlg = LoginDialog(apiUrl=self.config.get("apiUrl"))
+        if dlg.exec() == QDialog.Accepted:
+            self.passedLogin = True
+        else:
+            self.passedLogin = False
 
-            gazu.client.set_host(apiUrl)
-            gazu.log_in(config["email"], config["password"])
-        except gazu.exception.AuthFailedException as e:
-            print(f"Authentication Error while connecting to {apiUrl} as {email}.")
-            raise e
+    def _connect(self) -> bool:
+            email = None
+            try:
+                apiUrl = self.config.get("apiUrl")
+                login = LoginDialog()
+                login.show()
+                if login.exec() == QDialog.Accepted:
+                    email, password = login.get_credentials()
+                else:
+                    return True
+
+                if not apiUrl or not email or not password:
+                    raise Exception("apiUrl, email and password are required in config.yaml")
+
+                gazu.client.set_host(apiUrl)
+                gazu.log_in(email, password)
+            except gazu.exception.AuthFailedException as e:
+                return False
+            return True
 
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
         project = self._getProject()
@@ -85,13 +103,17 @@ class KitsuPipeline(AbstractPipelineInterface):
                 print(f"Shot {id} not found.")
                 print(kitsuShot)
             else:
+                name = shot["sequence_name"] + "_" + shot["name"]
+                filePath = self._getFilePath(folderPath=shot.get("data").get("absolutepath"), shotName=name)
+                if filePath is None:
+                    print(f"Could not find file for shot: {name}")
 
                 outShot = {
-                    "name": shot["sequence_name"] + "_" + shot["name"],
+                    "name": name,
                     "start": shot["frame_in"],
                     "end": shot["frame_out"],
                     "duration": shot["nb_frames"],
-                    "filePath": shot.get("data").get("absolutepath")
+                    "filePath": filePath
                 }
 
                 shotListOut.append(outShot)
@@ -105,6 +127,42 @@ class KitsuPipeline(AbstractPipelineInterface):
         return True
 
     ### HELPER ###
+
+    def _getFilePath(self, folderPath: str, shotName: str) -> Optional[str]:
+        p = pathlib.Path(folderPath)
+        if not p.exists() or not p.is_dir():
+            return None
+
+        pattern = re.compile(
+            r'^active_(?P<shot>[A-Za-z0-9]+)_(?P<task>[A-Za-z][A-Za-z0-9-]*)_v(?P<ver>\d{3,})\.(?P<ext>[A-Za-z0-9]+)$',
+            re.IGNORECASE
+        )
+
+        bestVersion = -1
+        bestPath = None
+
+        for file in p.iterdir():
+
+            if not file.is_file():
+                continue
+
+            m = pattern.match(file.name)
+            if not m:
+                continue
+
+            info = m.groupdict()
+            key = f"{info['shot']}_{info['task']}"
+
+            if key.casefold() != shotName.casefold():
+                continue
+
+            versionNumber = int(info["ver"])
+
+            if versionNumber > bestVersion:
+                bestVersion = versionNumber
+                bestPath = file
+
+        return bestPath
 
     def _getProject(self):
         projectName = self.config.get("project_name")
