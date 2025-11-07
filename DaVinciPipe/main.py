@@ -3,10 +3,16 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+vendor = r"N:\vendor"
+if vendor not in sys.path:
+    sys.path.insert(0, vendor)
+print(sys.path)
+
+# from DaVinciPipe.AbstractEditingSoftware import BlenderHandle
 from DaVinciPipe.DavinciHandle import DavinciHandle
 from DaVinciPipe.PipelineInterfaces import AbstractPipelineInterface, KitsuPipeline, ShotgridPipeline
 
-sys.path.append("N:/vendor")
+
 
 from PySide6.QtWidgets import QApplication
 
@@ -35,35 +41,60 @@ def _loadDefaultConfig() -> Dict[str, Any]:
         return json.load(f)
 
 
-def main(resolve, config: dict[str, Any] = None):
+def main(editingObject, config: dict[str, Any] = None):
     if config is None:
         config = _loadDefaultConfig()
 
     _addVendorToSyspath(config)
     print(sys.path)
     try:
-        print(resolve)
+        print(editingObject)
     except:
         raise Exception("Robin hat rein geschissen.")
 
-    app = QApplication(sys.argv)
-    manager: str = None
-    pipe: AbstractPipelineInterface = None
+    qtApp = QApplication.instance() or QApplication([])
+    QApplication.setQuitOnLastWindowClosed(False)
 
-    if config:
-        manager = config.get("manager")
+    try:
+        manager: str = None
+        pipe: AbstractPipelineInterface = None
 
-    if manager == "shotgrid":
-        pipe = ShotgridPipeline()
-    elif manager == "kitsu":
-        pipe = KitsuPipeline(config.get("kitsu"), app)
+        if config:
+            manager = config.get("manager")
 
-    handle: DavinciHandle = DavinciHandle(pipe)
+        if manager == "shotgrid":
+            pipe = ShotgridPipeline()
+        elif manager == "kitsu":
+            print(1)
+            pipe = KitsuPipeline(config.get("kitsu"), qtApp)
+            print(2)
 
-    davinciProject = resolve.GetProjectManager().GetCurrentProject()
-    timeline = davinciProject.GetTimelineByIndex(1)
-    clipsCollection = handle.getTimelineInfo(timeline)
-    kitsuShots = pipe._collectShotsFromPipeline()
-    print(dir(kitsuShots))
+        print(3)
+        handle: DavinciHandle = DavinciHandle(pipe, editingObject, config)
+        # davinciProject = resolve.GetProjectManager().GetCurrentProject()
+        # timeline = davinciProject.GetTimelineByIndex(1)
 
-    sys.exit(app.exec())
+        #handle: BlenderHandle = BlenderHandle(pipe, config, editingObject)
+        print(4)
+        # clipsCollection = handle.getTimelineInfo()
+        kitsuShots = pipe._collectShotsFromPipeline()
+        print(5)
+
+        print(kitsuShots)
+        handle.importShotCollection(kitsuShots)
+        print(6)
+    except Exception as ex:
+        print(ex)
+        raise ex
+    finally:
+        print(10)
+
+    # sys.exit(qtApp.exec())
+
+
+
+
+
+
+
+

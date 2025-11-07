@@ -68,24 +68,24 @@ class KitsuPipeline(AbstractPipelineInterface):
             self.passedLogin = False
 
     def _connect(self) -> bool:
-            email = None
-            try:
-                apiUrl = self.config.get("apiUrl")
-                login = LoginDialog()
-                login.show()
-                if login.exec() == QDialog.Accepted:
-                    email, password = login.get_credentials()
-                else:
-                    return True
+        email = None
+        try:
+            apiUrl = self.config.get("apiUrl")
+            login = LoginDialog()
+            login.show()
+            if login.exec() == QDialog.Accepted:
+                email, password = login.get_credentials()
+            else:
+                return True
 
-                if not apiUrl or not email or not password:
-                    raise Exception("apiUrl, email and password are required in config.yaml")
+            if not apiUrl or not email or not password:
+                raise Exception("apiUrl, email and password are required in config.yaml")
 
-                gazu.client.set_host(apiUrl)
-                gazu.log_in(email, password)
-            except gazu.exception.AuthFailedException as e:
-                return False
-            return True
+            gazu.client.set_host(apiUrl)
+            gazu.log_in(email, password)
+        except gazu.exception.AuthFailedException as e:
+            return False
+        return True
 
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
         project = self._getProject()
@@ -100,13 +100,12 @@ class KitsuPipeline(AbstractPipelineInterface):
             id = kitsuShot["id"]
             shot = gazu.shot.get_shot(id)
             if shot is None or shot.get("data") is None:
-                print(f"Shot {id} not found.")
-                print(kitsuShot)
+                continue
             else:
                 name = shot["sequence_name"] + "_" + shot["name"]
                 filePath = self._getFilePath(folderPath=shot.get("data").get("absolutepath"), shotName=name)
                 if filePath is None:
-                    print(f"Could not find file for shot: {name}")
+                    print(f"[WARNING] Could not find file for shot: {name}")
 
                 outShot = {
                     "name": name,
@@ -129,16 +128,19 @@ class KitsuPipeline(AbstractPipelineInterface):
     ### HELPER ###
 
     def _getFilePath(self, folderPath: str, shotName: str) -> Optional[str]:
+        if folderPath is None or "":
+            return None
         p = pathlib.Path(folderPath)
         if not p.exists() or not p.is_dir():
             return None
 
         pattern = re.compile(
-            r'^active_(?P<shot>[A-Za-z0-9]+)_(?P<task>[A-Za-z][A-Za-z0-9-]*)_v(?P<ver>\d{3,})\.(?P<ext>[A-Za-z0-9]+)$',
+            r"^(?P<camera>[A-Za-z0-9.]+)_(?P<shot>[A-Za-z0-9]+)_(?P<task>[A-Za-z][A-Za-z0-9_-]*)(?=_v)_v(?P<ver>\d{3,})\.(?P<ext>[A-Za-z0-9]+)$",
             re.IGNORECASE
         )
 
         bestVersion = -1
+        newestTask = 0
         bestPath = None
 
         for file in p.iterdir():
@@ -151,10 +153,6 @@ class KitsuPipeline(AbstractPipelineInterface):
                 continue
 
             info = m.groupdict()
-            key = f"{info['shot']}_{info['task']}"
-
-            if key.casefold() != shotName.casefold():
-                continue
 
             versionNumber = int(info["ver"])
 
