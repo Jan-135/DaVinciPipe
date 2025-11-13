@@ -2,7 +2,6 @@ import copy
 from pathlib import Path
 from typing import Any, Optional
 
-
 from DaVinciPipe.PipelineInterfaces import AbstractPipelineInterface
 
 
@@ -21,7 +20,7 @@ class DavinciHandle:
         self._mediaPool = None
         self._timeline = None
 
-        self._fps = self.config["fps"] or self.project.GetSetting("timelineFrameRate")
+        self._fps = None
 
     @property
     def pipe(self):
@@ -73,6 +72,12 @@ class DavinciHandle:
             self._timeline = self.project.GetTimelineByIndex(1)
         return self._timeline
 
+    @property
+    def fps(self):
+        if self._fps is None:
+            self._fps = self.project.GetSetting("timelineFrameRate")
+        return self._fps
+
     def getTimelineInfo(self) -> list[dict[str, Any]]:
         clipsCollection = []
         for trackType in ("video", "audio"):
@@ -93,36 +98,53 @@ class DavinciHandle:
         return clipsCollection
 
     def importShotCollection(self, shotCollection: list[dict[str, Any]]):
-        for shot in shotCollection:
-            #if shot.get("filePath"):
-            print("[DEBUG]")
-            print(shot.get("filePath"))
-            start = self._frameToTimeCode(shot["start"])
-            self.timeline.SetCurrentTimecode(start)
-            timelineItem = self.timeline.InsertFusionCompositionIntoTimeline()
-            comp = timelineItem.GetFusionCompByIndex(1)
-            output = comp.FindTool("MediaOut1")
 
-            item = self._importShotViaFilePath(shot)
-            if item is None:
-                item = self.getPlaceholderItem(shot, comp)
-            print(item)
-            output.ConnectInput("Input", item)
+        clipInfos = []
+        for shot in shotCollection:
+            if shot.get("filePath"):
+                item = self._importShotViaFilePath(shot)
+                if item is not None:
+                    # start = self._frameToTimeCode(shot["start"])
+                    # self.timeline.SetCurrentTimecode(start)
+
+                    recordFrame = self._startFrame() + shot["start"]
+                    print("[DEBUG]")
+                    print(f"RecordFrame for shot {shot['name']}: {recordFrame}")
+                    clipInfo = {
+                        "mediaPoolItem": item,
+                        "trackIndex": 1,
+                        "recordFrame": recordFrame,
+                    }
+                    clipInfos.append(clipInfo)
+
+        self.mediaPool.AppendToTimeline(clipInfos)
+
+                    # timelineItem = self.timeline.InsertFusionCompositionIntoTimeline()
+                    # comp = timelineItem.GetFusionCompByIndex(1)
+                    # output = comp.FindTool("MediaOut1")
+                    # print("output: ", dir(output))
+
+                # if item is None:
+                #     item = self.getPlaceholderItem(shot, comp)
+
+                # output.ConnectInput("Input", item)
 
                 # self.placeOnTimeline(shot, item)
+
+    def _startFrame(self):
+        """Davinci starts frame count at 1 hour"""
+        return self.fps * 3600
 
     def _importShotViaFilePath(self, shot: dict[str, Any]) -> Optional[any]:
         filePath: Path = shot.get("filePath")
         if filePath is None:
             return None
 
-        try:
-            addedItems = self.mediaStorage.AddItemListToMediaPool([str(filePath)])
-            return addedItems[0]
-        except Exception as e:
-            print(f"[ERROR] Failed to add items to media pool: {e}")
-        finally:
-            return None
+        # try:
+        addedItems = self.mediaStorage.AddItemListToMediaPool([str(filePath)])
+        return addedItems[0]
+        # except Exception as e:
+        #     print(f"[ERROR] Failed to add items to media pool: {e}")
 
     def updateClip(self, shot) -> bool:
         return self._pipe.updateShot(shot)
