@@ -4,14 +4,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 import gazu
-import sys
-
-from DaVinciPipe.CredentialStore import CredentialStore
-
-sys.path.append("N:/vendor")
-
 from PySide6.QtWidgets import QDialog
 
+from DaVinciPipe.CredentialStore import CredentialStore
 from ui.login_window import LoginDialog
 
 
@@ -89,7 +84,6 @@ class KitsuPipeline(AbstractPipelineInterface):
         self.credentials.save_session(client.tokens)
         print("[INFO] Login successful – Session stored!")
         self.passedLogin = True
-
 
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
         project = self._getProject()

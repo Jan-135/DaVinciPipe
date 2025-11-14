@@ -6,13 +6,9 @@ from typing import Any, Dict
 vendor = r"N:\vendor"
 if vendor not in sys.path:
     sys.path.insert(0, vendor)
-print(sys.path)
 
-# from DaVinciPipe.AbstractEditingSoftware import BlenderHandle
 from DaVinciPipe.DavinciHandle import DavinciHandle
 from DaVinciPipe.PipelineInterfaces import AbstractPipelineInterface, KitsuPipeline, ShotgridPipeline
-
-
 
 from PySide6.QtWidgets import QApplication
 
@@ -58,47 +54,21 @@ def main(editingObject, config: dict[str, Any] = None):
     try:
         manager: str = None
         pipe: AbstractPipelineInterface = None
-
         if config:
             manager = config.get("manager")
-
         if manager == "shotgrid":
             pipe = ShotgridPipeline() or None
         elif manager == "kitsu":
             print(1)
             pipe = KitsuPipeline(config.get("kitsu"), qtApp) or None
             print(2)
-
         if pipe is None:
             print("Pipe is None")
             return
-
-        print(3)
         handle: DavinciHandle = DavinciHandle(pipe, editingObject, config)
-        # davinciProject = resolve.GetProjectManager().GetCurrentProject()
-        # timeline = davinciProject.GetTimelineByIndex(1)
 
-        #handle: BlenderHandle = BlenderHandle(pipe, config, editingObject)
-        print(4)
-        # clipsCollection = handle.getTimelineInfo()
         kitsuShots = pipe._collectShotsFromPipeline()
-        print(5)
-
-        print(kitsuShots)
         handle.importShotCollection(kitsuShots)
-        print(6)
     except Exception as ex:
         print(ex)
         raise ex
-    finally:
-        print(10)
-
-    # sys.exit(qtApp.exec())
-
-
-
-
-
-
-
-

@@ -104,9 +104,6 @@ class DavinciHandle:
             if shot.get("filePath"):
                 item = self._importShotViaFilePath(shot)
                 if item is not None:
-                    # start = self._frameToTimeCode(shot["start"])
-                    # self.timeline.SetCurrentTimecode(start)
-
                     recordFrame = self._startFrame() + shot["start"]
                     print("[DEBUG]")
                     print(f"RecordFrame for shot {shot['name']}: {recordFrame}")
@@ -119,18 +116,6 @@ class DavinciHandle:
 
         self.mediaPool.AppendToTimeline(clipInfos)
 
-                    # timelineItem = self.timeline.InsertFusionCompositionIntoTimeline()
-                    # comp = timelineItem.GetFusionCompByIndex(1)
-                    # output = comp.FindTool("MediaOut1")
-                    # print("output: ", dir(output))
-
-                # if item is None:
-                #     item = self.getPlaceholderItem(shot, comp)
-
-                # output.ConnectInput("Input", item)
-
-                # self.placeOnTimeline(shot, item)
-
     def _startFrame(self):
         """Davinci starts frame count at 1 hour"""
         return self.fps * 3600
@@ -139,12 +124,8 @@ class DavinciHandle:
         filePath: Path = shot.get("filePath")
         if filePath is None:
             return None
-
-        # try:
         addedItems = self.mediaStorage.AddItemListToMediaPool([str(filePath)])
         return addedItems[0]
-        # except Exception as e:
-        #     print(f"[ERROR] Failed to add items to media pool: {e}")
 
     def updateClip(self, shot) -> bool:
         return self._pipe.updateShot(shot)
@@ -160,7 +141,7 @@ class DavinciHandle:
 
         return merge
 
-    def _frameToTimeCode(self, frame, fps=None) -> str:
+    def _frameToTimeCode(self, frame, fps=None, oneHourOffsetAlreadyAdded=True) -> str:
         if fps is None:
             fps = self._fps
 
@@ -171,6 +152,6 @@ class DavinciHandle:
         f %= int(fps * 60)
         s = f // int(fps)
         f %= int(fps)
-
-        h += 1  # Resolve starts at 1 hour
+        if not oneHourOffsetAlreadyAdded:
+            h += 1  # Resolve starts at 1 hour
         return f"{h:02d}:{m:02d}:{s:02d}:{f:02d}"

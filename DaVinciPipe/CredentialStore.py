@@ -1,6 +1,8 @@
 import json
 import os
+
 from appdirs import user_data_dir
+
 
 class CredentialStore:
     def __init__(self, app_name="ResolveKitsuTool"):

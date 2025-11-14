@@ -17,7 +17,6 @@ class AbstractEditingSoftwareHandle(ABC):
     def config(self) -> dict:
         return self._config
 
-
     @abstractmethod
     def getTimelineInfo(self) -> list[dict[str, Any]]:
         raise NotImplementedError()
@@ -26,6 +25,7 @@ class AbstractEditingSoftwareHandle(ABC):
     def importShotCollection(self, shotCollection: list[dict[str, Any]]):
         raise NotImplementedError()
 
+
 class BlenderHandle(AbstractEditingSoftwareHandle):
 
     def __init__(self, pipe: AbstractPipelineInterface, config: dict, bpyObj):
@@ -33,15 +33,16 @@ class BlenderHandle(AbstractEditingSoftwareHandle):
         self._scene = None
         self._sequenceEditor = None
 
-
     @property
     def bpy(self):
         return self._bpy
+
     @property
     def scene(self):
         if self._scene is None:
             self._scene = self._bpy.context.scene
         return self._scene
+
     @property
     def sequenceEditor(self):
         if self._sequenceEditor is None:
@@ -52,15 +53,11 @@ class BlenderHandle(AbstractEditingSoftwareHandle):
         pass
 
     def importShotCollection(self, shotCollection: list[dict[str, Any]]):
-        import pdb; pdb.set_trace()
         for shot in shotCollection:
-            print(shot.get("filePath"))
             if shot.get("filePath"):
-                print("INSIDE")
                 movieStrip = self.sequenceEditor.sequences.new_movie(
-                   name = shot["name"],
-                   filepath = str(shot["filePath"]),
-                   channel = 1,
-                   frame_start = shot["start"],
+                    name=shot["name"],
+                    filepath=str(shot["filePath"]),
+                    channel=1,
+                    frame_start=shot["start"],
                 )
-                print(movieStrip)
