@@ -1,3 +1,4 @@
+import json
 import pathlib
 import re
 from abc import ABC, abstractmethod
@@ -6,7 +7,8 @@ from typing import Any, Optional
 import gazu
 from PySide6.QtWidgets import QDialog
 
-from DaVinciPipe.CredentialStore import CredentialStore
+from DaVinciPipe.storage.ConfigStore import ConfigStore
+from DaVinciPipe.storage.CredentialStore import CredentialStore
 from ui.login_window import LoginDialog
 
 
@@ -21,7 +23,7 @@ class AbstractPipelineInterface(ABC):
 
     def __validate(self, shotList):
         for shot in shotList:
-            if shot.get("name") and shot.get("start") and shot.get("duration") and shot.get("end"):
+            if shot.get("name") and shot.get("start") and shot.get("duration") and shot.get("end") and shot.get("path"):
                 continue
             else:
                 return False
@@ -55,34 +57,70 @@ class ShotgridPipeline(AbstractPipelineInterface):
 
 class KitsuPipeline(AbstractPipelineInterface):
 
-    def __init__(self, config: dict, qtApp):
-        self.config = config
+    def __init__(self, qtApp):
         self._qtApp = qtApp
+        self.configStore = ConfigStore()
         self.credentials = CredentialStore()
 
-        api_url = self.config.get("apiUrl")
-        gazu.client.set_host(api_url)
+        # Load stored config path (optional)
+        storedConfigPath = self.configStore.loadConfigPath()
+        loaded_config = None
 
-        client = gazu.client.default_client
-
-        saved = self.credentials.load_session()
-        if saved:
-            client.tokens = saved
+        if storedConfigPath:
             try:
-                gazu.client.get_current_user()
-                print("[INFO] Auto-login via stored session")
-                self.passedLogin = True
-                return
-            except:
-                print("[WARNING] Saved session invalid, asking user to log in…")
+                with open(storedConfigPath, "r") as f:
+                    loaded_config = json.load(f)
+            except Exception as e:
+                print(f"[ERROR] Stored config corrupted: {e}")
+                storedConfigPath = None
+                loaded_config = None
 
-        dlg = LoginDialog(apiUrl=api_url)
+        # Try saved tokens + saved config
+        saved_tokens = self.credentials.loadSession()
+        if saved_tokens and loaded_config:
+            api_url = loaded_config.get("kitsu").get("apiUrl")
+            if api_url:
+                gazu.client.set_host(api_url)
+                gazu.client.default_client.tokens = saved_tokens
+
+                try:
+                    gazu.client.get_current_user()
+                    print("[INFO] Auto-login successful using stored config + tokens")
+                    self.config = loaded_config.get("kitsu")
+                    self.passedLogin = True
+                    return
+                except:
+                    print("[WARNING] Saved session invalid")
+            else:
+                print("[WARNING] Stored config missing apiUrl")
+
+        # 3. Show login dialog (pass stored config)
+        dlg = LoginDialog(config=loaded_config)
+
         if dlg.exec() != QDialog.Accepted:
+            print("[ERROR] Login canceled")
             self.passedLogin = False
             return
 
-        self.credentials.save_session(client.tokens)
-        print("[INFO] Login successful – Session stored!")
+        # 4. Retrieve config path + load config
+        config_path = dlg.getConfigPath()
+        if not config_path:
+            print("[ERROR] No config selected")
+            self.passedLogin = False
+            return
+
+        with open(config_path, "r") as f:
+            new_config = json.load(f).get("kitsu", "")
+
+        # 5. Save chosen config path
+        self.configStore.saveConfigPath(config_path)
+
+        # 6. Save tokens after successful login
+        self.credentials.saveSession(gazu.client.default_client.tokens)
+
+        # 7. Store final config
+        self.config = new_config
+        print("[INFO] Login + config selection successful")
         self.passedLogin = True
 
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
@@ -162,6 +200,9 @@ class KitsuPipeline(AbstractPipelineInterface):
 
     def _getProject(self):
         projectName = self.config.get("project_name")
+        print(f"config: {self.config}")
+        print(f"projectName = {projectName}")
         allProjects = gazu.client.get("/data/projects/all")
+        print(f"All projects : {[project['name'] for project in allProjects]}")
         kitsuProject = [project for project in allProjects if project["name"] == projectName][0]
         return kitsuProject

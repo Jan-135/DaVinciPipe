@@ -60,7 +60,8 @@ def main(editingObject, config: dict[str, Any] = None):
             pipe = ShotgridPipeline() or None
         elif manager == "kitsu":
             print(1)
-            pipe = KitsuPipeline(config.get("kitsu"), qtApp) or None
+            config = config.get("kitsu")
+            pipe = KitsuPipeline(qtApp) or None
             print(2)
         if pipe is None:
             print("Pipe is None")
