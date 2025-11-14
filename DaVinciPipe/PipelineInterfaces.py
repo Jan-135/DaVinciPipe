@@ -6,6 +6,8 @@ from typing import Any, Optional
 import gazu
 import sys
 
+from DaVinciPipe.CredentialStore import CredentialStore
+
 sys.path.append("N:/vendor")
 
 from PySide6.QtWidgets import QDialog
@@ -61,31 +63,33 @@ class KitsuPipeline(AbstractPipelineInterface):
     def __init__(self, config: dict, qtApp):
         self.config = config
         self._qtApp = qtApp
-        dlg = LoginDialog(apiUrl=self.config.get("apiUrl"))
-        if dlg.exec() == QDialog.Accepted:
-            self.passedLogin = True
-        else:
+        self.credentials = CredentialStore()
+
+        api_url = self.config.get("apiUrl")
+        gazu.client.set_host(api_url)
+
+        client = gazu.client.default_client
+
+        saved = self.credentials.load_session()
+        if saved:
+            client.tokens = saved
+            try:
+                gazu.client.get_current_user()
+                print("[INFO] Auto-login via stored session")
+                self.passedLogin = True
+                return
+            except:
+                print("[WARNING] Saved session invalid, asking user to log in…")
+
+        dlg = LoginDialog(apiUrl=api_url)
+        if dlg.exec() != QDialog.Accepted:
             self.passedLogin = False
+            return
 
-    def _connect(self) -> bool:
-        email = None
-        try:
-            apiUrl = self.config.get("apiUrl")
-            login = LoginDialog()
-            login.show()
-            if login.exec() == QDialog.Accepted:
-                email, password = login.get_credentials()
-            else:
-                return True
+        self.credentials.save_session(client.tokens)
+        print("[INFO] Login successful – Session stored!")
+        self.passedLogin = True
 
-            if not apiUrl or not email or not password:
-                raise Exception("apiUrl, email and password are required in config.yaml")
-
-            gazu.client.set_host(apiUrl)
-            gazu.log_in(email, password)
-        except gazu.exception.AuthFailedException as e:
-            return False
-        return True
 
     def _collectShotsFromPipeline(self) -> list[dict[str, Any]]:
         project = self._getProject()

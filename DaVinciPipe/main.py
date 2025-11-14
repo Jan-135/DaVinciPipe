@@ -63,11 +63,15 @@ def main(editingObject, config: dict[str, Any] = None):
             manager = config.get("manager")
 
         if manager == "shotgrid":
-            pipe = ShotgridPipeline()
+            pipe = ShotgridPipeline() or None
         elif manager == "kitsu":
             print(1)
-            pipe = KitsuPipeline(config.get("kitsu"), qtApp)
+            pipe = KitsuPipeline(config.get("kitsu"), qtApp) or None
             print(2)
+
+        if pipe is None:
+            print("Pipe is None")
+            return
 
         print(3)
         handle: DavinciHandle = DavinciHandle(pipe, editingObject, config)
