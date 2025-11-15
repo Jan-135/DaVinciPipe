@@ -3,6 +3,9 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+from ui.mainUi import MainUi
+from ui.style import appStyle
+
 vendor = r"N:\vendor"
 if vendor not in sys.path:
     sys.path.insert(0, vendor)
@@ -12,6 +15,7 @@ from DaVinciPipe.PipelineInterfaces import AbstractPipelineInterface, KitsuPipel
 
 from PySide6.QtWidgets import QApplication
 
+mainWindow = None
 
 def _addVendorToSyspath(config: dict[str, Any]) -> None:
     vendorsPathRaw = config.get("vendorsPath")
@@ -38,6 +42,8 @@ def _loadDefaultConfig() -> Dict[str, Any]:
 
 
 def main(editingObject, config: dict[str, Any] = None):
+    global mainWindow
+
     if config is None:
         config = _loadDefaultConfig()
 
@@ -48,8 +54,12 @@ def main(editingObject, config: dict[str, Any] = None):
     except:
         raise Exception("Robin hat rein geschissen.")
 
-    qtApp = QApplication.instance() or QApplication([])
-    QApplication.setQuitOnLastWindowClosed(False)
+    app = QApplication.instance()
+    appWasCreatedHere = False
+    if app is None:
+        app = QApplication(sys.argv)
+        appWasCreatedHere = True
+    app.setStyleSheet(appStyle)
 
     try:
         manager: str = None
@@ -61,15 +71,21 @@ def main(editingObject, config: dict[str, Any] = None):
         elif manager == "kitsu":
             print(1)
             config = config.get("kitsu")
-            pipe = KitsuPipeline(qtApp) or None
+            pipe = KitsuPipeline(app) or None
             print(2)
         if pipe is None:
             print("Pipe is None")
             return
         handle: DavinciHandle = DavinciHandle(pipe, editingObject, config)
 
-        kitsuShots = pipe._collectShotsFromPipeline()
-        handle.importShotCollection(kitsuShots)
+        mainWindow = MainUi()
+        mainWindow.show()
+
+        if appWasCreatedHere:
+            app.exec()
+
+        # kitsuShots = pipe._collectShotsFromPipeline()
+        # handle.importShotCollection(kitsuShots)
     except Exception as ex:
         print(ex)
         raise ex

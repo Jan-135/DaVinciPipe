@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import re
+
 import gazu
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QPen, QColor
@@ -17,14 +17,10 @@ class LoginDialog(QDialog):
         self.setMinimumWidth(360)
         self.setObjectName("Root")
 
-        self.loaded_config = config
-        self.loaded_config_path = None
-        self.selected_config_path = None
+        self.loadedConfig = config
+        self.loadedConfigPath = None
+        self.selectedConfigPath = None
 
-        if config:
-            self.loaded_config_path = config.get("__path__", None)
-
-        # Card
         card = QFrame(self)
         card.setObjectName("Card")
 
@@ -84,6 +80,7 @@ class LoginDialog(QDialog):
 
         browseBtn = QPushButton("Browse", self)
         browseBtn.clicked.connect(self._pickConfigFile)
+        browseBtn.setProperty("role", "secondary")
 
         row = QHBoxLayout()
         row.addWidget(self.configPath)
@@ -93,38 +90,27 @@ class LoginDialog(QDialog):
 
         btns = QHBoxLayout()
         self.cancelBtn = QPushButton("Cancel", self)
+        self.cancelBtn.setProperty("role", "secondary")
+
         self.okBtn = QPushButton("Sign In", self)
+        self.okBtn.setProperty("role", "primary")
+
         self.cancelBtn.clicked.connect(self.reject)
         self.okBtn.clicked.connect(self._attemptLogin)
+
         btns.addWidget(self.cancelBtn)
         btns.addWidget(self.okBtn)
         c.addLayout(btns)
 
-        # Styles (kurz & clean)
-        self.setStyleSheet("""
-            #Root { background: #0f1115; }
-            * { color: #eaeaea; font-family: Inter, Segoe UI, Arial; font-size: 14px; }
-            QLabel { background: transparent; }
-            #Card { background: #1b1f2a; border-radius: 14px; }
-            QLabel#Title { font-size: 20px; font-weight: 700; }
-            QLabel#Subtitle { color: #a0a7b3; font-size: 12px; }
-            QLabel#Error { color: #ff6b6b; background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.35); padding: 6px 8px; border-radius: 8px; }
-            QLineEdit#LineEdit { background: #0f1320; border:1px solid #2a3142; border-radius:10px; padding:10px 12px; }
-            QLineEdit#LineEdit:focus { border-color:#3a7afe; }
-            QPushButton { border-radius: 10px; padding: 9px 12px; }
-            QPushButton:default, QPushButton[text="Sign In"] { background:#3a7afe; color:white; border:none; }
-            QPushButton:hover:default, QPushButton[text="Sign In"]:hover { background:#2f67d6; }
-            QPushButton[text="Cancel"] { background:transparent; border:1px solid #2a3142; }
-            QPushButton[text="Cancel"]:hover { background:#0f1320; }
-        """)
+        if config:
+            self.loadedConfigPath = config.get("__path__", None)
+            if self.loadedConfigPath:
+                self.configPath.setText(self.loadedConfigPath)
 
     def getConfigPath(self):
-        """Return final config path."""
-
-        if self.selected_config_path:
-            return self.selected_config_path
-
-        return self.loaded_config_path
+        if self.selectedConfigPath:
+            return self.selectedConfigPath
+        return self.loadedConfigPath
 
     def _pickConfigFile(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -132,38 +118,30 @@ class LoginDialog(QDialog):
         )
         if path:
             self.configPath.setText(path)
-            self.selected_config_path = path
+            self.selectedConfigPath = path
 
     def _showError(self, msg: str):
         self.errorLbl.setText(msg)
         self.errorLbl.setVisible(True)
 
     def _attemptLogin(self):
-        # 1. Config path holen (entweder user-selected oder default)
-        config_path = self.getConfigPath()
+        configPath = self.getConfigPath()
 
-        print("[INOFO] config_path: ", self.configPath.text())
-        print("[INOFO] config_path: ", self.getConfigPath())
-
-        if not config_path:
+        if not configPath:
             self._showError("Please select a config file.")
             return
-
-        # 2. Config laden
         try:
-            with open(config_path, "r") as f:
-                cfg = json.load(f).get("kitsu", "")
+            with open(configPath, "r") as f:
+                cfg = json.load(f).get("kitsu", {})
         except Exception as e:
             self._showError(f"Failed to load config: {e}")
             return
 
-        # 3. API URL extrahieren
-        api_url = cfg.get("apiUrl", "").strip()
-        if not api_url:
+        apiUrl = cfg.get("apiUrl", "").strip()
+        if not apiUrl:
             self._showError("Config file is missing 'apiUrl'.")
             return
 
-        # 4. Credentials prüfen
         email = self.user.text().strip()
         pwd = self.pwd.text()
 
@@ -171,17 +149,17 @@ class LoginDialog(QDialog):
             self._showError("Please enter email and password.")
             return
 
-        # 5. Login versuchen
         self.okBtn.setEnabled(False)
         self.cancelBtn.setEnabled(False)
+        self.okBtn.setProperty("role", "primary")
+        self.cancelBtn.setProperty("role", "secondary")
 
         try:
-            gazu.client.set_host(api_url)
+            gazu.client.set_host(apiUrl)
             gazu.log_in(email, pwd)
 
-            # Login success
-            self._final_config_path = config_path  # speichern
-            self._final_api_url = api_url  # speichern
+            self._finalConfigPath = configPath
+            self._finalApiUrl = apiUrl
 
             self.accept()
 
@@ -193,12 +171,6 @@ class LoginDialog(QDialog):
         finally:
             self.okBtn.setEnabled(True)
             self.cancelBtn.setEnabled(True)
-
-    # def getFinalConfigPath(self):
-    #     return getattr(self, "_final_config_path", None)
-
-    # def getFinalApiUrl(self):
-    #     return getattr(self, "_final_api_url", None)
 
     def _eyeIcon(self, crossed: bool) -> QIcon:
         pix = QPixmap(20, 20)
@@ -219,17 +191,3 @@ class LoginDialog(QDialog):
         self.pwd.setEchoMode(QLineEdit.Normal if checked else QLineEdit.Password)
         self.toggleAction.setIcon(self._eyeIcon(checked))
         self.toggleAction.setToolTip("Hide password" if checked else "Show password")
-
-    # def getCredentials(self) -> tuple[str, str]:
-    #     return self.user.text().strip(), self.pwd.text()
-
-
-# def _normalizeApiUrl(url: str | None) -> str:
-#     if not url:
-#         return ""
-#     u = url.strip()
-#     if not re.match(r"^https?://", u, re.I):
-#         u = "http://" + u
-#     if not re.search(r"/api/?$", u, re.I):
-#         u = u.rstrip("/") + "/api"
-#     return u

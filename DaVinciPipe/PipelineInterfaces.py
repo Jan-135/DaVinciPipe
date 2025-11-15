@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QDialog
 
 from DaVinciPipe.storage.ConfigStore import ConfigStore
 from DaVinciPipe.storage.CredentialStore import CredentialStore
-from ui.login_window import LoginDialog
+from ui.loginWindow import LoginDialog
 
 
 class AbstractPipelineInterface(ABC):
