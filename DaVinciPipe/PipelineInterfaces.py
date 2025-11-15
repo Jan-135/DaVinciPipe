@@ -23,7 +23,7 @@ class AbstractPipelineInterface(ABC):
 
     def __validate(self, shotList):
         for shot in shotList:
-            if shot.get("name") and shot.get("start") and shot.get("duration") and shot.get("end") and shot.get("path"):
+            if shot.get("name") and shot.get("start") and shot.get("duration") and shot.get("end"):
                 continue
             else:
                 return False
