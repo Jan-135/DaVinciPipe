@@ -80,14 +80,14 @@ class MainUi(QWidget):
 
         # --- Footer Hint ---
 
-        footerLabel = QLabel("Buttons are not connected yet – backend coming next.", self)
+        footerLabel = QLabel("Next feature is coming soon.", self)
         footerLabel.setObjectName("Footer")
         footerLabel.setAlignment(Qt.AlignHCenter)
         cardLayout.addWidget(footerLabel)
 
         # --- Style ---
         self.fetchTimelineButton.setProperty("role", "primary")
-        self.updateTimelineButton.setProperty("role", "primary")
+        self.updateTimelineButton.setProperty("role", "secondary")
         self.publishTimelineButton.setProperty("role", "secondary")
         self.saveVersionButton.setProperty("role", "secondary")
 
