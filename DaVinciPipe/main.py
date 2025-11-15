@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+from PySide6.QtGui import QIcon
+
 from ui.mainUi import MainUi
 from ui.style import appStyle
 
@@ -60,6 +62,9 @@ def main(editingObject, config: dict[str, Any] = None):
         app = QApplication(sys.argv)
         appWasCreatedHere = True
     app.setStyleSheet(appStyle)
+    iconPath = Path(__file__).parent.parent / "ui" / "icons" / "app.svg"
+    print(iconPath)
+    app.setWindowIcon(QIcon(str(iconPath)))
 
     try:
         manager: str = None
