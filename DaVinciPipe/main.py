@@ -74,23 +74,18 @@ def main(editingObject, config: dict[str, Any] = None):
         if manager == "shotgrid":
             pipe = ShotgridPipeline() or None
         elif manager == "kitsu":
-            print(1)
             config = config.get("kitsu")
             pipe = KitsuPipeline(app) or None
-            print(2)
         if pipe is None:
             print("Pipe is None")
             return
         handle: DavinciHandle = DavinciHandle(pipe, editingObject, config)
 
-        mainWindow = MainUi()
+        mainWindow = MainUi(handle=handle)
         mainWindow.show()
 
         if appWasCreatedHere:
             app.exec()
-
-        # kitsuShots = pipe._collectShotsFromPipeline()
-        # handle.importShotCollection(kitsuShots)
     except Exception as ex:
         print(ex)
         raise ex

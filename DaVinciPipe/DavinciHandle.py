@@ -21,6 +21,7 @@ class DavinciHandle:
         self._timeline = None
 
         self._fps = None
+        self._shotCollection = None
 
     @property
     def pipe(self):
@@ -78,6 +79,12 @@ class DavinciHandle:
             self._fps = self.project.GetSetting("timelineFrameRate")
         return self._fps
 
+    @property
+    def shotCollection(self) -> list[dict[str, Any]] :
+        if self._shotCollection is None:
+            self._shotCollection = self.pipe.getShotInformations()
+        return self._shotCollection
+
     def getTimelineInfo(self) -> list[dict[str, Any]]:
         clipsCollection = []
         for trackType in ("video", "audio"):
@@ -97,10 +104,10 @@ class DavinciHandle:
 
         return clipsCollection
 
-    def importShotCollection(self, shotCollection: list[dict[str, Any]]):
+    def importShotCollection(self):
 
         clipInfos = []
-        for shot in shotCollection:
+        for shot in self.shotCollection:
             if shot.get("filePath"):
                 item = self._importShotViaFilePath(shot)
                 if item is not None:

@@ -10,10 +10,10 @@ from PySide6.QtWidgets import (
 
 
 class MainUi(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, handle, parent=None):
         super().__init__(parent)
-        print("LOL")
 
+        self.__handle = handle
         self.setWindowTitle("Kitsu Timeline Sync")
         self.setMinimumWidth(420)
         self.setObjectName("Root")
@@ -94,17 +94,20 @@ class MainUi(QWidget):
         # --- Signals ---
 
         self.fetchTimelineButton.clicked.connect(
-            lambda: self.setStatus("Fetch Timeline clicked.")
+            self.fetchTimelineButtonClicked
         )
         self.updateTimelineButton.clicked.connect(
-            lambda: self.setStatus("Not implemented yet.")
+            lambda: self.setStatus("Coming soon.")
         )
         self.publishTimelineButton.clicked.connect(
-            lambda: self.setStatus("Not implemented yet.")
+            lambda: self.setStatus("Coming soon.")
         )
         self.saveVersionButton.clicked.connect(
-            lambda: self.setStatus("Not implemented yet.")
+            lambda: self.setStatus("Coming soon.")
         )
 
     def setStatus(self, message: str) -> None:
         self.statusLabel.setText(message)
+
+    def fetchTimelineButtonClicked(self):
+        self.__handle.importShotCollection()
