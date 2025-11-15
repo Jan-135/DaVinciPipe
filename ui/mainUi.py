@@ -110,4 +110,7 @@ class MainUi(QWidget):
         self.statusLabel.setText(message)
 
     def fetchTimelineButtonClicked(self):
+        self.setStatus("Fetching...")
+        QApplication.processEvents()
         self.__handle.importShotCollection()
+        self.setStatus("Fetching successful")
