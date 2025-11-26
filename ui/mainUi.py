@@ -88,7 +88,7 @@ class MainUi(QWidget):
 
         # --- Style ---
         self.fetchTimelineButton.setProperty("role", "primary")
-        self.updateTimelineButton.setProperty("role", "secondary")
+        self.updateTimelineButton.setProperty("role", "primary")
         self.publishTimelineButton.setProperty("role", "secondary")
         self.saveVersionButton.setProperty("role", "secondary")
 
