@@ -76,6 +76,8 @@ def main(editingObject, config: dict[str, Any] = None):
         elif manager == "kitsu":
             config = config.get("kitsu")
             pipe = KitsuPipeline(app) or None
+        else:
+            print(f"[ERROR] Config error: unknown manager: {config.get('manager')}")
         if pipe is None:
             print("Pipe is None")
             return

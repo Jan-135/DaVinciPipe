@@ -98,7 +98,7 @@ class MainUi(QWidget):
             self.fetchTimelineButtonClicked
         )
         self.updateTimelineButton.clicked.connect(
-            lambda: self.setStatus("Coming soon.")
+            self.updateTimelineButtonClicked
         )
         self.publishTimelineButton.clicked.connect(
             lambda: self.setStatus("Coming soon.")
@@ -115,3 +115,9 @@ class MainUi(QWidget):
         QApplication.processEvents()
         self.__handle.importShotCollection()
         self.setStatus("Fetching successful")
+
+    def updateTimelineButtonClicked(self):
+        self.setStatus("Updating...")
+        QApplication.processEvents()
+        self.__handle.updateTimeline()
+        self.setStatus("Update successful")

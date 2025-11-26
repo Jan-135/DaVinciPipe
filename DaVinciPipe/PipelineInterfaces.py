@@ -2,6 +2,7 @@ import json
 import pathlib
 import re
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Optional
 
 import gazu
@@ -45,6 +46,14 @@ class AbstractPipelineInterface(ABC):
         :return:
         """
         pass
+
+    @abstractmethod
+    def getNewestVersion(self, filePath: str) -> Path:
+        """
+        Needs to be implemented to get the newest version of the given file
+        :param filePath:
+        :return:
+        """
 
     @abstractmethod
     def updateShot(self, shot) -> bool:
@@ -139,7 +148,7 @@ class KitsuPipeline(AbstractPipelineInterface):
                 continue
             else:
                 name = shot["sequence_name"] + "_" + shot["name"]
-                filePath = self._getFilePath(folderPath=shot.get("data").get("absolutepath"), shotName=name)
+                filePath = self._getNewestVersionFile(folderPath=shot.get("data").get("absolutepath"))
                 if filePath is None:
                     print(f"[WARNING] Could not find file for shot: {name}")
 
@@ -155,6 +164,11 @@ class KitsuPipeline(AbstractPipelineInterface):
 
         return shotListOut
 
+    def getNewestVersion(self, filePath: str) -> Path:
+        directoryPath = Path(filePath).parent
+        newestVersion = self._getNewestVersionFile(str(directoryPath))
+        return Path(newestVersion)
+
     def updateAllShots(self, shotList: list[dict[str, Any]]) -> bool:
         return True
 
@@ -163,7 +177,7 @@ class KitsuPipeline(AbstractPipelineInterface):
 
     ### HELPER ###
 
-    def _getFilePath(self, folderPath: str, shotName: str) -> Optional[str]:
+    def _getNewestVersionFile(self, folderPath: str) -> Optional[str]:
         if folderPath is None or "":
             return None
         p = pathlib.Path(folderPath)
@@ -171,7 +185,7 @@ class KitsuPipeline(AbstractPipelineInterface):
             return None
 
         pattern = re.compile(
-            r"^(?P<camera>[A-Za-z0-9.]+)_(?P<shot>[A-Za-z0-9]+)_(?P<task>[A-Za-z][A-Za-z0-9_-]*)(?=_v)_v(?P<ver>\d{3,})\.(?P<ext>[A-Za-z0-9]+)$",
+            r"^(?P<camera>[A-Za-z0-9_.]+)_(?P<shot>[A-Za-z0-9]+)_v(?P<ver>\d{3,})\.(?P<ext>[A-Za-z0-9]+)$",
             re.IGNORECASE
         )
 
@@ -200,9 +214,6 @@ class KitsuPipeline(AbstractPipelineInterface):
 
     def _getProject(self):
         projectName = self.config.get("project_name")
-        print(f"config: {self.config}")
-        print(f"projectName = {projectName}")
         allProjects = gazu.client.get("/data/projects/all")
-        print(f"All projects : {[project['name'] for project in allProjects]}")
         kitsuProject = [project for project in allProjects if project["name"] == projectName][0]
         return kitsuProject

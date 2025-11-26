@@ -24,7 +24,7 @@ class DavinciHandle:
         self._shotCollection = None
 
     @property
-    def pipe(self):
+    def pipe(self) -> AbstractPipelineInterface:
         return self._pipe
 
     @property
@@ -92,6 +92,7 @@ class DavinciHandle:
                 for item in (self.timeline.GetItemListInTrack(trackType, t) or []):
                     mediaPool = item.GetMediaPoolItem()
                     clipsCollection.append({
+                        "mediaPoolItem": item,
                         "name": item.GetName(),
                         "trackType": trackType,
                         "trackIndex": t,
@@ -111,15 +112,18 @@ class DavinciHandle:
             if shot.get("filePath"):
                 item = self._importShotViaFilePath(shot)
                 if item is not None:
+                    import pydevd_pycharm
+                    pydevd_pycharm.settrace('localhost', port=5678, stdout_to_server=True, stderr_to_server=True)
                     recordFrame = self._startFrame() + shot["start"]
-                    print("[DEBUG]")
-                    print(f"RecordFrame for shot {shot['name']}: {recordFrame}")
                     clipInfo = {
                         "mediaPoolItem": item,
                         "trackIndex": 1,
                         "recordFrame": recordFrame,
                     }
                     clipInfos.append(clipInfo)
+
+            else:
+                print(f"[WARNING] Skipped shot: {shot['name']}")
 
         self.mediaPool.AppendToTimeline(clipInfos)
 
@@ -132,21 +136,19 @@ class DavinciHandle:
         if filePath is None:
             return None
         addedItems = self.mediaStorage.AddItemListToMediaPool([str(filePath)])
-        return addedItems[0]
+        if addedItems:
+            return addedItems[0]
+        return None
+
+    def updateTimeline(self):
+        clipsCollection = self.getTimelineInfo()
+        for clipInfo in clipsCollection:
+            isNewer, newPath = self._checkForNewerVersion(clipInfo["filePath"])
+            if isNewer:
+                clipInfo["mediaPoolItem"].GetMediaPoolItem().ReplaceClip(newPath)
 
     def updateClip(self, shot) -> bool:
         return self._pipe.updateShot(shot)
-
-    def getPlaceholderItem(self, shot, comp):
-
-        background = comp.AddTool("Background")
-        text = comp.AddTool("TextPlus")
-        merge = comp.AddTool("Merge")
-
-        merge.ConnectInput("Background", background)
-        merge.ConnectInput("Foreground", text)
-
-        return merge
 
     def _frameToTimeCode(self, frame, fps=None, oneHourOffsetAlreadyAdded=True) -> str:
         if fps is None:
@@ -162,3 +164,11 @@ class DavinciHandle:
         if not oneHourOffsetAlreadyAdded:
             h += 1  # Resolve starts at 1 hour
         return f"{h:02d}:{m:02d}:{s:02d}:{f:02d}"
+
+    def _checkForNewerVersion(self, filePath: str) -> tuple[bool, str]:
+        oldPath: Path = Path(filePath)
+        newPath: Path = self.pipe.getNewestVersion(filePath)
+        isNewer = True
+        if newPath == oldPath:
+            isNewer = False
+        return isNewer, str(newPath)
